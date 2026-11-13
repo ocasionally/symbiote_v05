@@ -184,7 +184,7 @@ def end():
                                  {2}'0MMMMMMMNkl,..   .'.{4}                                        {5}|{4}                      {0}[[{6}{2}*{4}{0}]] {7}PLEASE LET ME KNOW , IF ANY PROBLEM IN THIS. 
                                 {2}oWMMMMMMO;{4}                                                    {5}|{4}                      {0}[[{6}{2}*{4}{0}]] {7}MAKE PULL REQUEST, LET US KNOW YOU SUPPORT US. 
                               {2}.OMMMMMMK;{4}                                                      {5}|{4}                      {0}[[{6}{2}*{4}{0}]] {7}IF YOU HAVE ANY IDEA, THEN JUST LET ME KNOW .   
-                             {2}.0MMMMMWd{4}                                                        {5}|{4}                      {0}[[{6}{2}*{4}{0}]] {7}PLEASE DON'T HARM ANYONE , IT'S ONLY FOR EDUCATIONAL PURPOSE.
+                             {2}.0MMMMMWd{4}                                                        {5}|{4}                      {0}[[{6}{2}*{4}{0}]] {7}PLEASE DON'T HARM ANYONE , FOR USE IN CONTROLLED ENVIRONMENTS ONLY.
                             {2}.KMMMMMX; .';:cc:;,..{4}                                             {5}|{4}                      {0}[[{6}{2}*{4}{0}]] {7}WE WILL NOT BE RESPONSIBLE FOR ANY MISUSE OF THIS TOOL.  
                            {2}.XMMMMMWkOXWMMMMMMMMMWXOo;.{4}                                        {5}|{4}                      {0}[[{6}{2}*{4}{0}]] {7}THANKS FOR USE THIS TOOL. {0}"HAPPY HACKING ... GOOD BYE" {4}
                           {2}'NMMMMMMMMMMMMMMMMMMMMMMMMMW0o'{4}                                     {5}|{4}                       
@@ -251,7 +251,7 @@ def android_end():
     {0}[[{6}{2}*{4}{0}]] {7}PLEASE LET ME KNOW , IF ANY PROBLEM IN THIS.
     {0}[[{6}{2}*{4}{0}]] {7}MAKE PULL REQUEST, LET US KNOW YOU SUPPORT US.
     {0}[[{6}{2}*{4}{0}]] {7}IF YOU HAVE ANY IDEA, THEN JUST LET ME KNOW .
-    {0}[[{6}{2}*{4}{0}]] {7}PLEASE DON'T HARM ANYONE, IT'S ONLY FOR EDUCATIONAL PURPOSE.
+    {0}[[{6}{2}*{4}{0}]] {7}PLEASE DON'T HARM ANYONE, FOR USE IN CONTROLLED ENVIRONMENTS ONLY.
     {0}[[{6}{2}*{4}{0}]] {7}WE WILL NOT BE RESPONSIBLE FOR ANY MISUSE OF THIS TOOL.
     {0}[[{6}{2}*{4}{0}]] {7}THANKS FOR USE THIS TOOL. {0}"HAPPY HACKING ... GOOD BYE" {4}
 

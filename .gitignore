@@ -1,0 +1,12 @@
+# Datos capturados (nunca subir: contiene fotos e informacion de victimas)
+CapturedData/
+
+# Runtime / logs
+Log.log
+link.url
+Server/loclx*
+Server/ngrok*
+
+# Python
+__pycache__/
+*.pyc

